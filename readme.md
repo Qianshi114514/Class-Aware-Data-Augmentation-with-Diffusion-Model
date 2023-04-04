@@ -19,11 +19,11 @@ tqdm==4.62.3
 details in requirements.txt
 
 # Usage
-1.download isic-2018 dataset and unzip, remove the first row of the annotation csv\\
+1.download isic-2018 dataset and unzip, remove the first row of the annotation csv\
 
-2.use split_isic_2018.py to split the annotation into 5 txt as the 5-fold annotations\\
+2.use split_isic_2018.py to split the annotation into 5 txt as the 5-fold annotations\
 
-3.use train_diffusion_isic.py and train_guidance_classifier.py to train the unconditional ddpm and guiding classifier(here we adopt resnet-18 for easy training)\\
+3.use train_diffusion_isic.py and train_guidance_classifier.py to train the unconditional ddpm and guiding classifier (here we adopt resnet-18 for easy training)\
 
 4.
 
