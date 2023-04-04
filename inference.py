@@ -22,18 +22,20 @@ import random
 if __name__ == '__main__':
 
     # Load dataset
-    device = torch.device('cuda:4')
-    image_folder = '/home/ylindq/YUANQIANSHI/DATA/ISIC2018_Task3_Training_Input'
-    ckpt='/home/ylindq/YUANQIANSHI/CODE/diffusion_priors-main/isic/models/isic18_unet-32.pth'
-    anno_fold = '/home/ylindq/YUANQIANSHI/DATA/ISIC_2018_5fold'
-    cls_ckpt='/home/ylindq/YUANQIANSHI/CODE/diffusion_priors-main/isic/models/classifier_39.pth'
+    device = torch.device('cuda:0')
+    image_folder = 'path/to/ISIC2018_Task3_Training_Input'  # path to training set
+    ckpt='/path/to/isic18_unet-32.pth'                      # checkpoint of ddpm
+    anno_fold = '/path/to/ISIC_2018_5fold'                  # path to gt
+    cls_ckpt='/models/classifier_demo_fold_39.pth'          # checkpoint of classifier
+    save_folder=''                                          # path to save generated images
+    set_label=6 # label of generated images 6=vasc,3=ak,5=df
     print(device)
 
     # super paparam s
     image_size=256
     augment_horizontal_flip=False
-    train_split=[1,2,3,4]
-    test_split=[0]
+    #train_split=[1,2,3,4]
+    #test_split=[0]
     all_split=[0,1,2,3,4]
 
     class_net=models.resnet18(pretrained=False)
@@ -62,11 +64,10 @@ if __name__ == '__main__':
         txt_path=os.path.join(anno_fold,str(each_split)+'.txt')
         with open(txt_path, 'r') as f:
             for line in f.readlines():
-                if line.split()[1]!='3':    #ak
+                if line.split()[1]!='6':    #5,VASC
                     image_path=line.split()[0]
                     file_list.append(image_path)
     print('all images: ',len(file_list))
-    print('this class: ',10015-len(file_list))
 
     diff_net = UNetModel(image_size=256, in_channels=3, out_channels=3, 
                      model_channels=256, num_res_blocks=2, channel_mult=(1, 1, 2, 2, 4, 4),
@@ -86,15 +87,10 @@ if __name__ == '__main__':
             return self.img
 
     #steps = 200  
-    back_step=50
-    start_t = 200
-    forward_t= 300
+    back_step=50    # real sample steps with guidance
+    start_t = 200   # finetune steps
+    forward_t= 300  # sample steps with guidance
     steps=start_t
-    # start t是finetune步数
-    # forward t是加噪步数
-    # forward-start=loss部分的理论步数
-    # back_step是loss部分的实际步数
-
 
     random.shuffle(file_list)
     file_list_bar=tqdm.tqdm(file_list)
@@ -103,7 +99,7 @@ if __name__ == '__main__':
         # read in image
         image_path= os.path.join(image_folder,image_name)
         image=Image.open(image_path)
-        image.save('/home/ylindq/YUANQIANSHI/CODE/diffusion_priors-main/isic/loss_tune/origin.png')
+        image.save('origin.png')
         image=transform(image)
         image = torch.unsqueeze(image, 0).to(device)
         #image=torch.astensor(image, dtype=torch.float)
@@ -118,7 +114,7 @@ if __name__ == '__main__':
         image=np.clip(image,-1,1)
         image=np.squeeze(np.uint8((image+1)/2*255)).transpose([1, 2, 0])
         image=Image.fromarray(image)
-        image.save('/home/ylindq/YUANQIANSHI/CODE/diffusion_priors-main/isic/loss_tune/origin_noised.png')
+        image.save('origin_noised.png')
 
         #initialize differenciable image Model
         xt=xt.cpu().numpy()
@@ -133,35 +129,30 @@ if __name__ == '__main__':
         #for i, _ in enumerate(loss_bar):  
         for i, _ in enumerate(range(back_step)):  
             # Select t      
-            t = (back_step - i)/ back_step* (forward_t-start_t)+ start_t   # t从200-100
+            t = (back_step - i)/ back_step* (forward_t-start_t)+ start_t
             t = np.clip(t, 1, diffusion.T)
-            t = np.array([t], dtype = int)#.astype(int)
+            t = np.array([t], dtype = int)
             
             # Denoise by loss back
             sample_img = model.encode()
-            #print(sample_img.shape)
-            #print(t)
+
             xt, epsilon = diffusion.sample(sample_img, t)       
             t = torch.from_numpy(t).float().view(1)    
             pred = diff_net(xt.float(), t.to(device))   
             epsilon_pred = pred.float() # Use predicted noise only
             epsilon=epsilon.float()
 
-            
             # Compute diffusion loss
-            loss = F.mse_loss(epsilon_pred, epsilon)#.float() 
+            loss = F.mse_loss(epsilon_pred, epsilon)
 
             # Compute EMA of diffusion loss gradient norm
             opt.zero_grad()
 
             loss.backward()
             opt.step()
-            ''''''
 
-            ''''''
             # class loss
-            # 不用class loss的时候好像不用开
-            set_label=3
+            set_label=6
             with torch.no_grad():
                 grad_norm = torch.linalg.norm(model.img.grad)
                 if i > 0:
@@ -176,8 +167,6 @@ if __name__ == '__main__':
             # print(cls_out.dtype)
             pred = F.softmax(cls_out, dim=1)
             pred=pred.squeeze()
-            #print(pred)
-            #loss=0.01*(1-pred[set_label])
 
             loss = F.cross_entropy(cls_out.squeeze(-1), set_label)
             opt.zero_grad()
@@ -192,16 +181,6 @@ if __name__ == '__main__':
             for param_group in opt.param_groups:
                 param_group["lr"] = lr
 
-            '''
-            if (i)%10==0:
-                with torch.no_grad():
-                    image=model.encode()[0].detach().cpu().numpy().transpose([1, 2, 0])
-                    image=np.clip(image,-1,1)
-                    image=np.squeeze(np.uint8((image+1)/2*255))
-                    image=Image.fromarray(image)
-                    image.save('/home/ylindq/YUANQIANSHI/CODE/diffusion_priors-main/isic/loss_tune/'+str(int((back_step - i)/ back_step* (forward_t-start_t)+ start_t))+'.png')
-            '''
-
         # finetune 200 steps
         x = model.encode().float().to(device)
         with torch.no_grad():
@@ -210,7 +189,6 @@ if __name__ == '__main__':
             image=np.clip(image,-1,1)
             image=np.squeeze(np.uint8((image+1)/2*255))
             image=Image.fromarray(image)
-            name=image_name.split('.')[0]+'_3'+'.png'
-            #image.save(os.path.join('/home/ylindq/YUANQIANSHI/CODE/diffusion_priors-main/isic/AK',image_name))
-            image.save('/home/ylindq/YUANQIANSHI/CODE/diffusion_priors-main/isic/AK/'+name)
+            name=image_name.split('.')[0]+'_6'+'.png'
+            image.save(os.path.join(save_folder,string(set_label),name))
     
