@@ -19,13 +19,19 @@ tqdm==4.62.3
 details in requirements.txt
 
 # Usage
-1.download isic-2018 dataset and unzip, remove the first row of the annotation csv\
+## generate augmentation images
 
-2.use split_isic_2018.py to split the annotation into 5 txt as the 5-fold annotations\
+1.download isic-2018 dataset and unzip, remove the first row of the annotation csv
 
-3.use train_diffusion_isic.py and train_guidance_classifier.py to train the unconditional ddpm and guiding classifier (here we adopt resnet-18 for easy training)\
+2.use split_isic_2018.py to split the annotation into 5 txt as the 5-fold annotations
 
-4.
+3.use train_diffusion_isic.py and train_guidance_classifier.py to train the unconditional ddpm and guiding classifier (here we adopt resnet-18 for easy training)
+
+4.use inference.py to generate augmentation images, after that please drag all the images into the fold of "ISIC2018_Task3_Training" (and you can further rename it as "ISIC2018_Task3_Training_Aug")
+
+## compare classifier performance on different aumentation methods
+
+5.
 
 # Citation
 [ ] TO BE RELEASED.
