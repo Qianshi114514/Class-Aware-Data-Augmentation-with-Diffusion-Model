@@ -1,6 +1,5 @@
-# InsMix
+# Class Aware Data Augmentation with Diffusion Model
 
-<!-- [[paper](https://arxiv.org/abs/1905.06696).] -->
 
 This is the official code for "Class Aware Data Augmentation with Diffusion Model".
 
