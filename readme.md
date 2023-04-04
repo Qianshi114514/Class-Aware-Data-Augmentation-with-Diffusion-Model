@@ -40,3 +40,4 @@ details in requirements.txt
 - [ ] Refactor the code to make it more readable.
 
 # Acknowledgment 
+Borrowed some codes in https://github.com/AlexGraikos/diffusion_priors
